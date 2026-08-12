@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Fatih Yavuz — Web Developer. Portfolio with an interactive macOS-style terminal and 3D visuals."
+    />
+    <title>Fatih Yavuz — Web Developer</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="/src/css/style.css" />
+  </head>
+  <body>
+    <!-- Three.js background -->
+    <canvas id="bg"></canvas>
+    <div class="overlay"></div>
+
+    <!-- Scroll progress -->
+    <div class="progress" id="progress"></div>
+
+    <!-- Floating nav -->
+    <nav class="nav" id="nav">
+      <a href="#home" data-nav>~/home</a>
+      <a href="#about" data-nav>about</a>
+      <a href="#skills" data-nav>skills</a>
+      <a href="#experience" data-nav>experience</a>
+      <a href="#projects" data-nav>projects</a>
+      <a href="#contact" data-nav>contact</a>
+      <button class="nav-theme" id="nav-theme" title="cycle theme">◐</button>
+    </nav>
+
+    <div class="app">
+      <!-- HERO -->
+      <header class="hero" id="home">
+        <div class="hero-text">
+          <p class="kicker">$ whoami</p>
+          <h1 class="title">Fatih&nbsp;Yavuz</h1>
+          <p class="subtitle">
+            <span id="typewriter">Web Developer</span><span class="cursor">_</span>
+          </p>
+          <p class="tagline">
+            I build fast, accessible web apps. This whole site is drivable from
+            the terminal — start typing <code>help</code>. Scroll down and it
+            tucks into a <code>&gt;_</code> button you can reopen anytime.
+          </p>
+          <p class="hero-hint">
+            try: <code>ls</code> <code>help</code> <code>joke</code>
+            <code>open projects</code> <code>cowsay hi</code>
+          </p>
+        </div>
+
+        <!-- Terminal lives here on the hero; JS parks it in the dock on scroll -->
+        <div class="hero-term" id="term-hero-slot">
+          <div class="terminal" id="terminal">
+            <div class="term-bar" id="term-bar">
+              <div class="lights">
+                <span class="light red" data-win="close" title="clear conversation"></span>
+                <span class="light amber" data-win="min" title="minimize"></span>
+                <span class="light green" data-win="zoom" title="zoom"></span>
+              </div>
+              <div class="term-title">fatih@portfolio — -zsh</div>
+              <div class="term-pad"></div>
+            </div>
+            <div class="term-mount" id="term-mount"></div>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="panel" id="about">
+          <h2 class="panel-title"><span class="hash">#</span> about</h2>
+          <div class="panel-body">
+            <p>
+              I'm a React developer from Istanbul, building web apps with
+              React, Next.js, and TypeScript — several of them live on Vercel.
+              I care about clean architecture and the small details that make
+              software feel good to use.
+            </p>
+            <p>
+              45+ public repos on
+              <a href="https://github.com/yvzfth" target="_blank" rel="noopener"
+                >github.com/yvzfth</a
+              >
+              — with side quests into Rust, Swift, and Python.
+            </p>
+          </div>
+          <!-- stats ride with the about screen instead of claiming their own -->
+          <div class="stats" id="stats"></div>
+        </section>
+
+        <section class="panel" id="skills">
+          <h2 class="panel-title"><span class="hash">#</span> skills</h2>
+          <div class="skills-grid" id="skills-grid"></div>
+        </section>
+
+        <section class="panel" id="experience">
+          <h2 class="panel-title"><span class="hash">#</span> experience</h2>
+          <div class="timeline" id="timeline"></div>
+        </section>
+
+        <section class="panel" id="projects">
+          <h2 class="panel-title"><span class="hash">#</span> projects</h2>
+          <div class="projects-grid" id="projects-grid"></div>
+        </section>
+
+        <section class="panel" id="contact">
+          <h2 class="panel-title"><span class="hash">#</span> contact</h2>
+          <div class="panel-body">
+            <p>Let's build something. Reach me at:</p>
+            <ul class="contact-list" id="contact-list"></ul>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span id="clock" class="accent"></span> · Built with
+        <span class="accent">Three.js</span> + a terminal that actually works. ©
+        <span id="year"></span> Fatih Yavuz.
+        <span class="konami-hint">↑↑↓↓←→←→BA</span>
+      </footer>
+    </div>
+
+    <!-- Empty floating dock: JS moves #terminal here when you scroll past the hero -->
+    <div class="term-dock" id="term-dock" aria-hidden="true"></div>
+
+    <!-- Launcher bubble -->
+    <button class="term-bubble" id="term-bubble" aria-label="Open terminal">
+      <span class="bubble-glyph">&gt;_</span>
+      <span class="bubble-ping"></span>
+    </button>
+
+    <script type="module" src="/src/js/main.js"></script>
+  </body>
+</html>
