@@ -207,6 +207,43 @@ const CMD = {
 
 const ALIASES = { "?": "help", h: "help", cls: "clear", quit: "exit" };
 
+const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
+const GROQ_MODEL = "openai/gpt-oss-120b";
+
+async function askGroq(prompt) {
+  if (!GROQ_KEY)
+    return "AI chat is off — add VITE_GROQ_API_KEY to your .env file to enable it.";
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${GROQ_KEY}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are the AI assistant of Fatih Yavuz's portfolio. Fatih is a software developer from Istanbul working across the web, AI, and Apple platforms — React/Next.js/TypeScript, Python + InsightFace machine learning, and Swift for iOS & macOS. He is currently an ICT Assistant at the UN Development Programme, formerly AI Engineer at the Istanbul Chamber of Industry and full-stack developer at Supradent. Answer briefly and helpfully.",
+          },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      return `Groq error (${res.status}): ${detail.slice(0, 200)}`;
+    }
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content?.trim();
+    return content || "No response.";
+  } catch (e) {
+    return `Groq request failed: ${e.message}`;
+  }
+}
+
 async function run(raw) {
   const parts = raw.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "";
@@ -216,7 +253,7 @@ async function run(raw) {
   if (name === "clear") return "__CLEAR__";
 
   const fn = CMD[name];
-  if (!fn) return `Command not found: ${name}. Type 'help' for available commands.`;
+  if (!fn) return await askGroq(raw);
   try {
     return await fn(parts.slice(1));
   } catch (e) {
