@@ -374,8 +374,6 @@ export function initChat(scene) {
     box.scrollTop = box.scrollHeight;
   }
 
-  addMsg('Type "help" to see what I can do.', "assistant");
-
   function enterSession() {
     document.body.classList.add("chat-session");
     scene?.collapse?.();

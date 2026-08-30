@@ -25,12 +25,11 @@ export const skills = [
 // Real repos from github.com/yvzfth
 export const projects = [
   {
-    id: "digitalavm",
-    name: "digitalAVM",
-    desc: "Digital mall platform built with TypeScript — live on Vercel.",
-    tags: ["TypeScript", "Next.js", "Vercel"],
-    url: "https://github.com/yvzfth/digitalAVM",
-    live: "https://digitalavm.vercel.app",
+    id: "isoai",
+    name: "isoai",
+    desc: "InsightFace-based face recognition repo built for the Istanbul Chamber of Industry.",
+    tags: ["InsightFace", "Face Recognition", "Python"],
+    url: "https://github.com/ISOBTAI/isoai",
   },
   {
     id: "amadeus",
