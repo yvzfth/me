@@ -25,7 +25,6 @@ const paint = (c, s) => `${A[c]}${s}${A.reset}`;
 export function initTerminal() {
   const dock = document.getElementById("term-dock");
   const bubble = document.getElementById("term-bubble");
-  const heroSlot = document.getElementById("term-hero-slot");
   const terminalEl = document.getElementById("terminal");
   const mount = document.getElementById("term-mount");
   const bar = document.getElementById("term-bar");
@@ -86,9 +85,9 @@ export function initTerminal() {
     term.scrollToBottom();
   }
 
-  // ---------- placement: hero (inline) <-> floating dock/bubble ----------
-  // mode: "hero" = shown on the hero; "collapsed" = >_ button; "float" = floating window
-  let mode = "hero";
+  // ---------- placement: floating dock (open) <-> collapsed bottom-right button ----------
+  // mode: "collapsed" = >_ button; "float" = floating window
+  let mode = "collapsed";
   const refit = () =>
     setTimeout(() => {
       try {
@@ -97,14 +96,6 @@ export function initTerminal() {
       } catch {}
     }, 130);
 
-  function toHero() {
-    mode = "hero";
-    if (terminalEl.parentElement !== heroSlot) heroSlot.appendChild(terminalEl);
-    dock.classList.remove("open", "zoomed");
-    dock.setAttribute("aria-hidden", "true");
-    bubble.classList.add("hidden");
-    refit();
-  }
   function toCollapsed() {
     mode = "collapsed";
     dock.classList.remove("open");
@@ -143,34 +134,13 @@ export function initTerminal() {
 
   bubble.addEventListener("click", toFloat);
 
-  // scroll: on the hero -> inline; scrolled away -> collapse to button (unless floating)
-  const heroZone = () => window.scrollY < window.innerHeight * 0.55;
-  let ticking = false;
-  window.addEventListener(
-    "scroll",
-    () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        ticking = false;
-        if (dock.classList.contains("fullscreen")) return; // fullscreen ignores scroll
-        if (heroZone()) {
-          if (mode !== "hero") toHero();
-        } else if (mode === "hero") {
-          toCollapsed();
-        }
-      });
-    },
-    { passive: true },
-  );
-
   window.addEventListener("keydown", (e) => {
     const focused = mount.contains(document.activeElement);
     if (e.key === "Escape") {
       if (dock.classList.contains("fullscreen")) return toggleFullscreen(false);
       if (mode === "float") toCollapsed();
     }
-    if (e.key === "`" && !focused && mode !== "hero") {
+    if (e.key === "`" && !focused) {
       e.preventDefault();
       mode === "float" ? toCollapsed() : toFloat();
     }
@@ -221,7 +191,7 @@ ${paint("magenta", "fun")}      cowsay · figlet · fortune · quote · matrix �
 ${paint("magenta", "shell")}    echo · date · time · cal · history · whoami · clear · man <cmd>
 ${paint("magenta", "window")}   ${paint("green", "fullscreen")} (transparent, the 3D scene shows through)
 
-${paint("gray", "Run 'commands' for the full list. Tab autocompletes. Scroll up top to dock it on the hero.")}`,
+${paint("gray", "Run 'commands' for the full list. Tab autocompletes. Press Esc to collapse back to the bottom-right button.")}`,
     commands: () => {
       const keys = Object.keys(commands).sort();
       return (
@@ -860,7 +830,6 @@ ${Object.keys(fs.files)
       if (mode === "float") toCollapsed();
     } else if (action === "min") {
       if (mode === "float") toCollapsed();
-      else document.getElementById("about")?.scrollIntoView({ behavior: "smooth" });
     } else if (action === "zoom") {
       toggleFullscreen();
     }
@@ -881,10 +850,9 @@ ${Object.keys(fs.files)
     prompt();
   }
 
-  // ---------- init: show on the hero, boot once ----------
-  toHero();
+  // ---------- init: collapsed to the bottom-right button, boot once ----------
+  toCollapsed();
   boot();
-  setTimeout(() => term.focus(), 200);
 }
 
 // ---------- data for fun commands ----------

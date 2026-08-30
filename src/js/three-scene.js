@@ -278,7 +278,7 @@ export function initScene(canvas) {
     1,
     80000,
   );
-  observer.distance = 10;
+  observer.distance = 7;
   observer.moving = true; // slow orbit keeps the scene alive
 
   const textures = { bg: null, star: null, disk: null };

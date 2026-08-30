@@ -62,22 +62,6 @@
             <code>open projects</code> <code>cowsay hi</code>
           </p>
         </div>
-
-        <!-- Terminal lives here on the hero; JS parks it in the dock on scroll -->
-        <div class="hero-term" id="term-hero-slot">
-          <div class="terminal" id="terminal">
-            <div class="term-bar" id="term-bar">
-              <div class="lights">
-                <span class="light red" data-win="close" title="clear conversation"></span>
-                <span class="light amber" data-win="min" title="minimize"></span>
-                <span class="light green" data-win="zoom" title="zoom"></span>
-              </div>
-              <div class="term-title">fatih@portfolio — -zsh</div>
-              <div class="term-pad"></div>
-            </div>
-            <div class="term-mount" id="term-mount"></div>
-          </div>
-        </div>
       </header>
 
       <main>
@@ -134,8 +118,21 @@
       </footer>
     </div>
 
-    <!-- Empty floating dock: JS moves #terminal here when you scroll past the hero -->
-    <div class="term-dock" id="term-dock" aria-hidden="true"></div>
+    <!-- Floating dock: holds the terminal, opened from the bottom-right button -->
+    <div class="term-dock" id="term-dock" aria-hidden="true">
+      <div class="terminal" id="terminal">
+        <div class="term-bar" id="term-bar">
+          <div class="lights">
+            <span class="light red" data-win="close" title="clear conversation"></span>
+            <span class="light amber" data-win="min" title="minimize"></span>
+            <span class="light green" data-win="zoom" title="zoom"></span>
+          </div>
+          <div class="term-title">fatih@portfolio — -zsh</div>
+          <div class="term-pad"></div>
+        </div>
+        <div class="term-mount" id="term-mount"></div>
+      </div>
+    </div>
 
     <!-- Launcher bubble -->
     <button class="term-bubble" id="term-bubble" aria-label="Open terminal">
