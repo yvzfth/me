@@ -1,13 +1,17 @@
 import "@xterm/xterm/css/xterm.css";
 import { initScene } from "./three-scene.js";
 import { initTerminal } from "./terminal.js";
+import { initChat } from "./chat.js";
 import { skills, projects, contacts, experience, stats } from "./data.js";
 
 // --- 3D background ---
 initScene(document.getElementById("bg"));
 
-// --- terminal ---
+// --- terminal (accessible via 'terminal' command) ---
 initTerminal();
+
+// --- chat interface ---
+initChat();
 
 // --- render content sections from data ---
 function render() {
@@ -96,25 +100,6 @@ document.querySelectorAll("[data-nav]").forEach((a) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   });
 });
-
-// --- typewriter roles in the hero ---
-const ROLES = ["React Developer", "TypeScript Enthusiast", "Next.js Builder", "Rust Curious"];
-const tw = document.getElementById("typewriter");
-let twRole = 0, twChar = ROLES[0].length, twDel = false;
-(function typeLoop() {
-  const word = ROLES[twRole];
-  tw.textContent = word.slice(0, twChar);
-  if (!twDel && twChar === word.length) {
-    twDel = true;
-    return setTimeout(typeLoop, 2200); // pause on full word
-  }
-  if (twDel && twChar === 0) {
-    twDel = false;
-    twRole = (twRole + 1) % ROLES.length;
-  }
-  twChar += twDel ? -1 : 1;
-  setTimeout(typeLoop, twDel ? 45 : 90);
-})();
 
 // --- scroll progress bar ---
 const progress = document.getElementById("progress");

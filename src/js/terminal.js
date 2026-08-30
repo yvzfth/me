@@ -24,7 +24,7 @@ const paint = (c, s) => `${A[c]}${s}${A.reset}`;
 
 export function initTerminal() {
   const dock = document.getElementById("term-dock");
-  const bubble = document.getElementById("term-bubble");
+  const bubble = document.getElementById("term-bubble"); // may be null
   const terminalEl = document.getElementById("terminal");
   const mount = document.getElementById("term-mount");
   const bar = document.getElementById("term-bar");
@@ -100,14 +100,14 @@ export function initTerminal() {
     mode = "collapsed";
     dock.classList.remove("open");
     dock.setAttribute("aria-hidden", "true");
-    bubble.classList.remove("hidden");
+    bubble?.classList.remove("hidden");
   }
   function toFloat() {
     mode = "float";
     if (terminalEl.parentElement !== dock) dock.appendChild(terminalEl);
     dock.classList.add("open");
     dock.setAttribute("aria-hidden", "false");
-    bubble.classList.add("hidden");
+    bubble?.classList.add("hidden");
     refit();
     term.focus();
   }
@@ -122,7 +122,7 @@ export function initTerminal() {
       dock.classList.remove("zoomed");
       dock.classList.add("open", "fullscreen");
       dock.setAttribute("aria-hidden", "false");
-      bubble.classList.add("hidden");
+      bubble?.classList.add("hidden");
       document.body.classList.add("term-fullscreen");
     } else {
       dock.classList.remove("fullscreen");
@@ -132,7 +132,7 @@ export function initTerminal() {
     term.focus();
   }
 
-  bubble.addEventListener("click", toFloat);
+  bubble?.addEventListener("click", toFloat);
 
   window.addEventListener("keydown", (e) => {
     const focused = mount.contains(document.activeElement);

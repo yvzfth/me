@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Fatih Yavuz — Web Developer. Portfolio with an interactive macOS-style terminal and 3D visuals."
+      content="Web Developer. Portfolio with an interactive terminal and 3D visuals."
     />
-    <title>Fatih Yavuz — Web Developer</title>
+    <title>Portfolio — Web Developer</title>
 
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -44,25 +44,8 @@
     </nav>
 
     <div class="app">
-      <!-- HERO -->
-      <header class="hero" id="home">
-        <div class="hero-text">
-          <p class="kicker">$ whoami</p>
-          <h1 class="title">Fatih&nbsp;Yavuz</h1>
-          <p class="subtitle">
-            <span id="typewriter">Web Developer</span><span class="cursor">_</span>
-          </p>
-          <p class="tagline">
-            I build fast, accessible web apps. This whole site is drivable from
-            the terminal — start typing <code>help</code>. Scroll down and it
-            tucks into a <code>&gt;_</code> button you can reopen anytime.
-          </p>
-          <p class="hero-hint">
-            try: <code>ls</code> <code>help</code> <code>joke</code>
-            <code>open projects</code> <code>cowsay hi</code>
-          </p>
-        </div>
-      </header>
+      <!-- HERO — black hole only -->
+      <header class="hero" id="home"></header>
 
       <main>
         <section class="panel" id="about">
@@ -113,9 +96,28 @@
       <footer class="footer">
         <span id="clock" class="accent"></span> · Built with
         <span class="accent">Three.js</span> + a terminal that actually works. ©
-        <span id="year"></span> Fatih Yavuz.
+        <span id="year"></span>.
         <span class="konami-hint">↑↑↓↓←→←→BA</span>
       </footer>
+    </div>
+
+    <!-- Chat input -->
+    <div class="chat-bar" id="chat-bar">
+      <div class="chat-messages" id="chat-messages"></div>
+      <form class="chat-input-wrap" id="chat-form">
+        <canvas class="chat-canvas" id="chat-canvas" width="800" height="800"></canvas>
+        <div class="chat-placeholder" id="chat-placeholder">Ask me anything...</div>
+        <input
+          class="chat-input"
+          id="chat-input"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="chat-send" id="chat-send" type="submit" aria-label="Send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </form>
     </div>
 
     <!-- Floating dock: holds the terminal, opened from the bottom-right button -->
@@ -127,18 +129,14 @@
             <span class="light amber" data-win="min" title="minimize"></span>
             <span class="light green" data-win="zoom" title="zoom"></span>
           </div>
-          <div class="term-title">fatih@portfolio — -zsh</div>
+          <div class="term-title">portfolio — -zsh</div>
           <div class="term-pad"></div>
         </div>
         <div class="term-mount" id="term-mount"></div>
       </div>
     </div>
 
-    <!-- Launcher bubble -->
-    <button class="term-bubble" id="term-bubble" aria-label="Open terminal">
-      <span class="bubble-glyph">&gt;_</span>
-      <span class="bubble-ping"></span>
-    </button>
+    <!-- Terminal accessible via 'terminal' command -->
 
     <script type="module" src="/src/js/main.js"></script>
   </body>
