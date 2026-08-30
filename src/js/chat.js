@@ -328,7 +328,7 @@ export function initChat() {
             current.swept = true;
             current.x += current.vx;
             current.y += current.vy;
-            current.r -= 0.1;
+            current.r -= 0.12;
           }
           if (current.r > 0) alive.push(current);
         }
@@ -349,7 +349,7 @@ export function initChat() {
           animating = false;
           callback?.();
         } else {
-          frame(pos - 12);
+          frame(pos - 18);
         }
       });
     })(start);
