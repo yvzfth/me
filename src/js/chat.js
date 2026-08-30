@@ -224,7 +224,7 @@ async function run(raw) {
   }
 }
 
-export function initChat() {
+export function initChat(scene) {
   const form = document.getElementById("chat-form");
   const input = document.getElementById("chat-input");
   const box = document.getElementById("chat-messages");
@@ -376,6 +376,11 @@ export function initChat() {
 
   addMsg('Type "help" to see what I can do.', "assistant");
 
+  function enterSession() {
+    document.body.classList.add("chat-session");
+    scene?.collapse?.();
+  }
+
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const raw = input.value.trim();
@@ -383,6 +388,7 @@ export function initChat() {
     input.value = "";
     placeholder.classList.add("hidden");
 
+    enterSession();
     addMsg(raw, "user");
     vanishAndSubmit(raw, () => {});
 

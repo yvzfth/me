@@ -909,10 +909,44 @@ html:has(body.term-fullscreen) {
 .chat-canvas.active {
   opacity: 1;
 }
+
+/* ---------- full-screen chat session ----------
+   Triggered on the first submitted message: the black hole is hidden in the
+   shader (stars stay), and the chat takes over the whole viewport. */
+html:has(body.chat-session) {
+  scroll-snap-type: none;
+}
+body.chat-session {
+  overflow: hidden;
+}
+body.chat-session .nav,
+body.chat-session .progress,
+body.chat-session .app,
+body.chat-session .term-dock {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s;
+}
+body.chat-session .chat-bar {
+  top: 0;
+  height: 100vh;
+  padding-top: 3rem;
+  justify-content: flex-end;
+}
+body.chat-session .chat-messages {
+  flex: 1 1 auto;
+  max-height: none;
+  justify-content: flex-end;
+  padding-bottom: 1.25rem;
+}
+body.chat-session .chat-input-wrap {
+  max-width: 760px;
+}
 @media (max-width: 860px) {
   .hero { padding-top: 0; }
   .chat-msg { max-width: 95%; font-size: 0.82rem; }
   .chat-input-wrap { margin-bottom: 14px; }
+  body.chat-session .chat-bar { padding-top: 1.5rem; }
 }
 .accent {
   color: var(--accent);

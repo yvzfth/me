@@ -5,13 +5,13 @@ import { initChat } from "./chat.js";
 import { skills, projects, contacts, experience, stats } from "./data.js";
 
 // --- 3D background ---
-initScene(document.getElementById("bg"));
+const scene = initScene(document.getElementById("bg"));
 
 // --- terminal (accessible via 'terminal' command) ---
 initTerminal();
 
 // --- chat interface ---
-initChat();
+initChat(scene);
 
 // --- render content sections from data ---
 function render() {

@@ -44,6 +44,7 @@ const FRAGMENT_SHADER = /* glsl */ `
 
   uniform bool accretion_disk;
   uniform bool use_disk_texture;
+  uniform bool hide_hole;
   const float DISK_IN = 2.0;
   const float DISK_WIDTH = 4.0;
 
@@ -140,6 +141,23 @@ const FRAGMENT_SHADER = /* glsl */ `
     if (beaming)
       ray_intensity /= pow(ray_doppler_factor , 3.0);
 
+    if (hide_hole){
+      vec2 tex_coord = to_spherical(ray_dir * ROT_Z(45.0 * DEG_TO_RAD));
+      vec4 hole_color = vec4(0.0,0.0,0.0,1.0);
+      vec4 star_color = texture2D(star_texture, tex_coord);
+      if (star_color.g > 0.0){
+        float star_temperature = (MIN_TEMPERATURE + TEMPERATURE_RANGE*star_color.r);
+        float star_velocity = star_color.b - 0.5;
+        float star_doppler_factor = sqrt((1.0+star_velocity)/(1.0-star_velocity));
+        if (doppler_shift)
+          star_temperature /= ray_doppler_factor*star_doppler_factor;
+        hole_color += vec4(temp_to_color(star_temperature),1.0)* star_color.g;
+      }
+      hole_color += texture2D(bg_texture, tex_coord) * 0.25;
+      gl_FragColor = hole_color * ray_intensity;
+      return;
+    }
+
     vec3 oldpoint;
     float pointsqr;
     float distance = length(point);
@@ -233,6 +251,7 @@ export function initScene(canvas) {
     resolution: { value: new THREE.Vector2() },
     accretion_disk: { value: true },
     use_disk_texture: { value: true },
+    hide_hole: { value: false },
     lorentz_transform: { value: true },
     doppler_shift: { value: true },
     beaming: { value: true },
@@ -323,6 +342,14 @@ export function initScene(canvas) {
   onResize();
 
   const clock = new THREE.Clock();
+  // collapse-to-stars transition: pull the camera far out so the hole shrinks
+  // to the middle and vanishes, then snap to the star-only path.
+  let collapseFrom = null;
+  let collapseTarget = null;
+  let collapseStart = 0;
+  let collapseCb = null;
+  const COLLAPSE_MS = 1600;
+  const FAR_DISTANCE = 400;
   // temp vectors reused per frame
   const _dir = new THREE.Vector3();
   const _right = new THREE.Vector3();
@@ -334,6 +361,22 @@ export function initScene(canvas) {
     const t = clock.elapsedTime;
 
     observer.update(dt);
+
+    if (collapseTarget !== null) {
+      const p = Math.min((performance.now() - collapseStart) / COLLAPSE_MS, 1);
+      const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+      observer.distance = collapseFrom + (collapseTarget - collapseFrom) * ease;
+      if (p >= 1) {
+        collapseTarget = null;
+        uniforms.hide_hole.value = true;
+        observer.moving = false;
+        observer.angularVelocity = 0;
+        observer.velocity.set(0, 0, 0);
+        const cb = collapseCb;
+        collapseCb = null;
+        cb?.();
+      }
+    }
 
     // aim the camera straight at the hole (origin) so it stays centered
     _dir.copy(observer.position).negate().normalize();
@@ -350,4 +393,17 @@ export function initScene(canvas) {
     composer.render();
   }
   animate();
+
+  return {
+    setHoleVisible(visible) {
+      uniforms.hide_hole.value = !visible;
+    },
+    collapse(cb) {
+      collapseFrom = observer.distance;
+      collapseTarget = FAR_DISTANCE;
+      collapseStart = performance.now();
+      collapseCb = cb || null;
+      observer.moving = false;
+    },
+  };
 }
