@@ -210,6 +210,38 @@ const ALIASES = { "?": "help", h: "help", cls: "clear", quit: "exit" };
 const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 
+function buildSystemPrompt() {
+  const jobs = experience
+    .map(
+      (e) =>
+        `- ${e.period}: ${e.role} @ ${e.org} — ${e.desc} (${e.tags.join(", ")})`,
+    )
+    .join("\n");
+  const projs = projects
+    .map(
+      (p) =>
+        `- ${p.name}: ${p.desc} (${p.tags.join(", ")}) — ${p.url}${p.live ? ` — live: ${p.live}` : ""}`,
+    )
+    .join("\n");
+  return [
+    `You are the AI assistant in the portfolio of ${profile.name}, a ${profile.role} from ${profile.location}.`,
+    `Personal: born ${profile.born}, ${profile.nationality} nationality, native ${profile.languages.map((l) => `"${l}"`).join(" and ")}.`,
+    `Education: ${profile.education}.`,
+    `Achievements: ${profile.achievements.join("; ")}.`,
+    `Primary stack: ${profile.stack.join(", ")}.`,
+    "",
+    "Experience:",
+    jobs,
+    "",
+    "Notable projects:",
+    projs,
+    "",
+    `Contact: email ${contacts[2].value} · GitHub ${contacts[0].value} · LinkedIn ${contacts[1].value} · phone ${profile.phone}`,
+    "",
+    "Answer in the same language the user writes in. Be personal, friendly, and concise. Ground answers in the info above; if you don't know something, say so instead of inventing it. You may point visitors to the site sections (about / skills / experience / projects / contact).",
+  ].join("\n");
+}
+
 async function askGroq(prompt) {
   if (!GROQ_KEY)
     return "AI chat is off — add VITE_GROQ_API_KEY to your .env file to enable it.";
@@ -223,11 +255,7 @@ async function askGroq(prompt) {
       body: JSON.stringify({
         model: GROQ_MODEL,
         messages: [
-          {
-            role: "system",
-            content:
-              "You are the AI assistant of Fatih Yavuz's portfolio. Fatih is a software developer from Istanbul working across the web, AI, and Apple platforms — React/Next.js/TypeScript, Python + InsightFace machine learning, and Swift for iOS & macOS. He is currently an ICT Assistant at the UN Development Programme, formerly AI Engineer at the Istanbul Chamber of Industry and full-stack developer at Supradent. Answer briefly and helpfully.",
-          },
+          { role: "system", content: buildSystemPrompt() },
           { role: "user", content: prompt },
         ],
       }),

@@ -6,6 +6,15 @@ export const profile = {
   role: "Software Developer",
   location: "Istanbul, Türkiye",
   github: "yvzfth",
+  born: "28 Jan 2000",
+  nationality: "Turkish",
+  languages: ["Turkish (native)", "English (C1)"],
+  phone: "+90 546 683 2539",
+  education: "BSc Software Engineering, Nişantaşı University, Istanbul (2020–2024) — GPA 3.27/4.00",
+  achievements: [
+    "1st Prize — Teknofest Robotaxi Autonomous Vehicle Competition (2022)",
+    "3rd Prize — NeoChallenge Robotics Competition (2021)",
+  ],
   stack: [
     "JavaScript",
     "TypeScript",
