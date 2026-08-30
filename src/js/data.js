@@ -3,23 +3,42 @@
 
 export const profile = {
   name: "Fatih Yavuz",
-  role: "React Developer",
+  role: "Software Developer",
   location: "Istanbul, Türkiye",
   github: "yvzfth",
-  stack: ["JavaScript", "TypeScript", "React", "Next.js", "Node.js"],
+  stack: [
+    "JavaScript",
+    "TypeScript",
+    "React",
+    "Next.js",
+    "Node.js",
+    "Swift",
+    "Python",
+    "Rust",
+  ],
 };
 
 export const skills = [
-  { name: "JavaScript", level: "expert" },
-  { name: "TypeScript", level: "expert" },
-  { name: "React", level: "expert" },
-  { name: "Next.js", level: "advanced" },
+  { name: "JavaScript / TypeScript", level: "expert" },
+  { name: "React / Next.js", level: "expert" },
+  { name: "Swift (iOS & macOS)", level: "advanced" },
   { name: "Node.js", level: "advanced" },
-  { name: "Three.js / WebGL", level: "advanced" },
-  { name: "Swift", level: "intermediate" },
+  { name: "Python", level: "advanced" },
+  { name: "Machine Learning / AI", level: "advanced" },
+  { name: "InsightFace / Face Recognition", level: "advanced" },
+  { name: "REST APIs", level: "advanced" },
+  { name: "Docker", level: "advanced" },
+  { name: "MongoDB", level: "advanced" },
+  { name: "Microsoft 365 / Azure AD / Intune", level: "advanced" },
+  { name: "SharePoint / Power Automate", level: "advanced" },
+  { name: "Linux / Shell", level: "advanced" },
+  { name: "Networking (TCP/IP · DNS · VPN)", level: "advanced" },
+  { name: "Git / GitHub Actions", level: "advanced" },
   { name: "Rust", level: "intermediate" },
-  { name: "Python", level: "intermediate" },
-  { name: "PHP / Laravel", level: "intermediate" },
+  { name: "Electron.js", level: "intermediate" },
+  { name: "MySQL / SQL", level: "intermediate" },
+  { name: "Firebase / Supabase", level: "intermediate" },
+  { name: "AWS", level: "intermediate" },
 ];
 
 // Real repos from github.com/yvzfth
@@ -149,7 +168,7 @@ export const fs = {
   dirs: ["about", "skills", "experience", "projects", "contact"],
   files: {
     "README.md": `# ${profile.name} — ${profile.role}\n\nWelcome to my interactive portfolio.\nGitHub: https://github.com/yvzfth · 45 public repos\nType 'ls' to look around, 'open projects' to jump to a section,\nor 'help' for every command.`,
-    "about.txt": `React developer from Istanbul. I build web apps with React,\nNext.js, and TypeScript — with side quests into Rust, Swift, and Python.\n45 public repos and counting.`,
+    "about.txt": `Software developer from Istanbul working across the web, AI,\nand Apple platforms — React/Next.js/TypeScript web apps, Python +\nInsightFace machine-learning services, and Swift apps for iOS & macOS.\n45 public repos and counting.`,
     "resume.txt": `${profile.name}\n${profile.role} · ${profile.location}\nGitHub:   github.com/yvzfth\nLinkedIn: linkedin.com/in/yvzfth\nStack:    ${profile.stack.join(", ")}\n\nTip: run 'open contact' to get in touch.`,
     ".zshrc": `# fatih's shell config\nalias dev="npm run dev"\nalias build="npm run build"\nexport EDITOR=nvim`,
   },

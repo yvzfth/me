@@ -8,7 +8,7 @@ const CMD = {
     `Commands:\nabout · skills · experience · projects · contact\nls · cat <file> · whoami · neofetch\ncd <section> · open <section>\njoke · weather <city> · cowsay <msg>\ncalc <expr> · base64 · rot13 · clear`,
 
   about: () =>
-    `I'm a React developer from Istanbul, building web apps with\nReact, Next.js, and TypeScript — several of them live on Vercel.\nI care about clean architecture and the small details that make\nsoftware feel good to use.\n\n45+ public repos on github.com/yvzfth\n— with side quests into Rust, Swift, and Python.`,
+    `I'm a software developer from Istanbul working across the web,\nAI, and Apple platforms — React/Next.js/TypeScript web apps,\nPython + InsightFace machine-learning services, and Swift apps\nfor iOS & macOS.\n\nNow: ICT Assistant at the UN Development Programme.\nBefore: AI Engineer at the Istanbul Chamber of Industry, full-stack\n       developer at Supradent.\n\n45+ public repos on github.com/yvzfth.`,
 
   skills: () =>
     skills.map((s) => `${s.name.padEnd(18)}${s.level}`).join("\n"),
@@ -266,8 +266,44 @@ export function initChat(scene) {
 
   input.addEventListener("input", () => {
     if (animating) return;
+    autoGrow();
+    historyCursor = history.length;
     placeholder.classList.toggle("hidden", input.value.length > 0);
   });
+
+  function autoGrow() {
+    input.style.height = "auto";
+    input.style.height = input.scrollHeight + "px";
+    form.classList.toggle("multiline", input.scrollHeight > 60);
+  }
+
+  const history = [];
+  let historyCursor = 0;
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (!animating) form.requestSubmit();
+      return;
+    }
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    if (animating || !history.length) return;
+    e.preventDefault();
+    if (e.key === "ArrowUp" && historyCursor > 0) {
+      historyCursor--;
+    } else if (e.key === "ArrowDown" && historyCursor < history.length) {
+      historyCursor++;
+    } else {
+      return;
+    }
+    const val = historyCursor < history.length ? history[historyCursor] : "";
+    input.value = val;
+    placeholder.classList.toggle("hidden", val.length > 0);
+    const end = input.value.length;
+    input.setSelectionRange(end, end);
+  });
+
+  autoGrow();
 
   function draw(text) {
     canvas.width = 800;
@@ -285,8 +321,12 @@ export function initChat(scene) {
     sctx.font = font;
     ctx.fillStyle = "#FFF";
     sctx.fillStyle = "#FFF";
-    ctx.fillText(text, 16, 40);
-    sctx.fillText(text, 16, 40);
+    const lines = String(text).split("\n");
+    const lineHeight = fontSize * 2 * 1.5;
+    lines.forEach((line, i) => {
+      ctx.fillText(line, 16, 40 + i * lineHeight);
+      sctx.fillText(line, 16, 40 + i * lineHeight);
+    });
 
     const imageData = ctx.getImageData(0, 0, 800, 800).data;
     const newData = [];
@@ -383,7 +423,10 @@ export function initChat(scene) {
     e.preventDefault();
     const raw = input.value.trim();
     if (!raw || animating) return;
+    history.push(raw);
+    historyCursor = history.length;
     input.value = "";
+    autoGrow();
     placeholder.classList.add("hidden");
 
     enterSession();
