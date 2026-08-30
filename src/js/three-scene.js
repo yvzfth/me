@@ -282,14 +282,15 @@ export function initScene(canvas) {
   observer.moving = true; // slow orbit keeps the scene alive
 
   const textures = { bg: null, star: null, disk: null };
+  const textureBase = import.meta.env.BASE_URL || './';
   const loader = new THREE.TextureLoader();
-  loader.load("/blackhole/milkyway.jpg", (t) => {
+  loader.load(`${textureBase}blackhole/milkyway.jpg`, (t) => {
     t.magFilter = THREE.NearestFilter;
     t.minFilter = THREE.NearestFilter;
     textures.bg = t;
     uniforms.bg_texture.value = t;
   });
-  loader.load("/blackhole/star_noise.png", (t) => {
+  loader.load(`${textureBase}blackhole/star_noise.png`, (t) => {
     t.magFilter = THREE.LinearFilter;
     t.minFilter = THREE.LinearFilter;
     t.wrapT = THREE.ClampToEdgeWrapping;
@@ -297,7 +298,7 @@ export function initScene(canvas) {
     textures.star = t;
     uniforms.star_texture.value = t;
   });
-  loader.load("/blackhole/accretion_disk.png", (t) => {
+  loader.load(`${textureBase}blackhole/accretion_disk.png`, (t) => {
     t.magFilter = THREE.LinearFilter;
     t.minFilter = THREE.LinearFilter;
     t.wrapT = THREE.ClampToEdgeWrapping;
