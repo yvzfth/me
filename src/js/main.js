@@ -101,6 +101,18 @@ document.querySelectorAll("[data-nav]").forEach((a) => {
   });
 });
 
+// --- brand: back home (exits chat session, clears chat, restores the hole) ---
+function goHome() {
+  document.body.classList.remove("chat-session");
+  scene.reset?.();
+  const feed = document.getElementById("chat-messages");
+  if (feed) feed.innerHTML = "";
+  const ph = document.getElementById("chat-placeholder");
+  if (ph) ph.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+document.getElementById("brand").addEventListener("click", goHome);
+
 // --- scroll progress bar ---
 const progress = document.getElementById("progress");
 window.addEventListener(

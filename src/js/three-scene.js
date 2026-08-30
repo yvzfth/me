@@ -342,14 +342,16 @@ export function initScene(canvas) {
   onResize();
 
   const clock = new THREE.Clock();
-  // collapse-to-stars transition: pull the camera far out so the hole shrinks
-  // to the middle and vanishes, then snap to the star-only path.
-  let collapseFrom = null;
-  let collapseTarget = null;
-  let collapseStart = 0;
-  let collapseCb = null;
-  const COLLAPSE_MS = 1600;
+  // camera-distance tween: pulls the hole out to stars (collapse) or back in
+  // to the hero (reset), with an ease and a callback on arrival.
+  let tweenFrom = null;
+  let tweenTarget = null;
+  let tweenStart = 0;
+  let tweenEnd = 0;
+  let tweenCb = null;
+  const TWEEN_MS = 1600;
   const FAR_DISTANCE = 400;
+  const ENTRY_DISTANCE = 8;
   // temp vectors reused per frame
   const _dir = new THREE.Vector3();
   const _right = new THREE.Vector3();
@@ -362,18 +364,14 @@ export function initScene(canvas) {
 
     observer.update(dt);
 
-    if (collapseTarget !== null) {
-      const p = Math.min((performance.now() - collapseStart) / COLLAPSE_MS, 1);
+    if (tweenTarget !== null) {
+      const p = Math.min((performance.now() - tweenStart) / (tweenEnd - tweenStart), 1);
       const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-      observer.distance = collapseFrom + (collapseTarget - collapseFrom) * ease;
+      observer.distance = tweenFrom + (tweenTarget - tweenFrom) * ease;
       if (p >= 1) {
-        collapseTarget = null;
-        uniforms.hide_hole.value = true;
-        observer.moving = false;
-        observer.angularVelocity = 0;
-        observer.velocity.set(0, 0, 0);
-        const cb = collapseCb;
-        collapseCb = null;
+        tweenTarget = null;
+        const cb = tweenCb;
+        tweenCb = null;
         cb?.();
       }
     }
@@ -399,11 +397,29 @@ export function initScene(canvas) {
       uniforms.hide_hole.value = !visible;
     },
     collapse(cb) {
-      collapseFrom = observer.distance;
-      collapseTarget = FAR_DISTANCE;
-      collapseStart = performance.now();
-      collapseCb = cb || null;
+      tweenFrom = observer.distance;
+      tweenTarget = FAR_DISTANCE;
+      tweenStart = performance.now();
+      tweenEnd = tweenStart + TWEEN_MS;
+      tweenCb = () => {
+        uniforms.hide_hole.value = true;
+        observer.moving = false;
+        observer.angularVelocity = 0;
+        observer.velocity.set(0, 0, 0);
+        cb?.();
+      };
       observer.moving = false;
+    },
+    reset(cb) {
+      tweenFrom = observer.distance;
+      tweenTarget = ENTRY_DISTANCE;
+      tweenStart = performance.now();
+      tweenEnd = tweenStart + TWEEN_MS;
+      tweenCb = () => {
+        uniforms.hide_hole.value = false;
+        observer.moving = true;
+        cb?.();
+      };
     },
   };
 }
