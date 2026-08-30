@@ -221,7 +221,7 @@ export function initScene(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
   renderer.setClearColor(0x000000, 1.0);
   renderer.autoClear = false;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.setPixelRatio(1);
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   const scene = new THREE.Scene();
@@ -257,7 +257,7 @@ export function initScene(canvas) {
 
   // ---- bloom (reference defaults: strength 1.0, radius 0.5, threshold 0.6)
   const composer = new EffectComposer(renderer);
-  composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  composer.setPixelRatio(1);
   composer.setSize(window.innerWidth, window.innerHeight);
   composer.addPass(new RenderPass(scene, camera));
   const bloomPass = new UnrealBloomPass(
@@ -278,7 +278,7 @@ export function initScene(canvas) {
     1,
     80000,
   );
-  observer.distance = 7;
+  observer.distance = 8;
   observer.moving = true; // slow orbit keeps the scene alive
 
   const textures = { bg: null, star: null, disk: null };
@@ -308,9 +308,12 @@ export function initScene(canvas) {
   });
 
   const onResize = () => {
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    // pixelRatio kept at 1: the shader's square_frame() maps gl_FragCoord
+    // (device px) to [-1,1], so buffer size MUST equal CSS size or the
+    // black hole gets pinned off-center at any pixelRatio > 1.
+    renderer.setPixelRatio(1);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    composer.setPixelRatio(1);
     composer.setSize(window.innerWidth, window.innerHeight);
     bloomPass.resolution.set(window.innerWidth, window.innerHeight);
     uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
