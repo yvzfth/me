@@ -1,379 +1,349 @@
 import * as THREE from "three";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { CopyShader } from "three/addons/shaders/CopyShader.js";
+import { BlackHoleCamera } from "./camera.js";
 
-// Black hole background.
-//
-//   event horizon  — matte black sphere, swallows everything behind it
-//   photon ring    — the thin bright halo light traces before falling in
-//   accretion disk — shader ring: white-hot inside, cooling outward, with
-//                    Doppler asymmetry (the side rotating toward you is brighter)
-//   star field     — points on slow inward spirals; anything that crosses the
-//                    horizon respawns far out, so matter keeps feeding the disk
-//   lens glow      — camera-facing sprite that fakes gravitational lensing
+// Background ported faithfully from github.com/vlwkaos/threejs-blackhole: one
+// fullscreen fragment shader that integrates each pixel's photon path through a
+// Schwarzschild black hole's gravity, using the same disk/star/milkyway
+// textures, the same orbiting+drag camera, and the same bloom post pass.
 
-const BH_RADIUS = 3.2; // event horizon
-const DISK_INNER = BH_RADIUS * 1.35;
-const DISK_OUTER = BH_RADIUS * 4.2;
+// ---- performance / quality (matching the reference's "medium" preset) ----
+const STEP = 0.05;
+const NSTEPS = 600;
+
+const VERTEX_SHADER = /* glsl */ `
+  void main() {
+    gl_Position = vec4(position, 1.0);
+  }
+`;
+
+const FRAGMENT_SHADER = /* glsl */ `
+  #define STEP ${STEP}
+  #define NSTEPS ${NSTEPS}
+  precision highp float;
+  #define PI 3.141592653589793238462643383279
+  #define DEG_TO_RAD (PI/180.0)
+  #define ROT_Y(a) mat3(1, 0, 0, 0, cos(a), sin(a), 0, -sin(a), cos(a))
+  #define ROT_Z(a) mat3(cos(a), -sin(a), 0, sin(a), cos(a), 0, 0, 0, 1)
+
+  uniform float time;
+  uniform vec2 resolution;
+
+  uniform vec3 cam_pos;
+  uniform vec3 cam_dir;
+  uniform vec3 cam_up;
+  uniform float fov;
+  uniform vec3 cam_vel;
+
+  const float MIN_TEMPERATURE = 1000.0;
+  const float TEMPERATURE_RANGE = 39000.0;
+
+  uniform bool accretion_disk;
+  uniform bool use_disk_texture;
+  const float DISK_IN = 2.0;
+  const float DISK_WIDTH = 4.0;
+
+  uniform bool doppler_shift;
+  uniform bool lorentz_transform;
+  uniform bool beaming;
+
+  uniform sampler2D bg_texture;
+  uniform sampler2D star_texture;
+  uniform sampler2D disk_texture;
+
+  vec2 square_frame(vec2 screen_size){
+    vec2 position = 2.0 * (gl_FragCoord.xy / screen_size.xy) - 1.0;
+    return position;
+  }
+
+  vec2 to_spherical(vec3 cartesian_coord){
+    vec2 uv = vec2(atan(cartesian_coord.z,cartesian_coord.x), asin(cartesian_coord.y));
+    uv *= vec2(1.0/(2.0*PI), 1.0/PI);
+    uv += 0.5;
+    return uv;
+  }
+
+  vec3 lorentz_transform_velocity(vec3 u, vec3 v){
+    float speed = length(v);
+    if (speed > 0.0){
+      float gamma = 1.0/sqrt(1.0-dot(v,v));
+      float denominator = 1.0 - dot(v,u);
+      vec3 new_u = (u/gamma - v + (gamma/(gamma+1.0)) * dot(u,v)*v)/denominator;
+      return new_u;
+    }
+    return u;
+  }
+
+  vec3 temp_to_color(float temp_kelvin){
+    vec3 color;
+    temp_kelvin = clamp(temp_kelvin, 1000.0, 40000.0) / 100.0;
+    if (temp_kelvin <= 66.0){
+      color.r = 255.0;
+      color.g = temp_kelvin;
+      color.g = 99.4708025861 * log(color.g) - 161.1195681661;
+      if (color.g < 0.0) color.g = 0.0;
+      if (color.g > 255.0)  color.g = 255.0;
+    } else {
+      color.r = temp_kelvin - 60.0;
+      if (color.r < 0.0) color.r = 0.0;
+      color.r = 329.698727446 * pow(color.r, -0.1332047592);
+      if (color.r < 0.0) color.r = 0.0;
+      if (color.g > 255.0) color.r = 255.0;
+      color.g = temp_kelvin - 60.0;
+      if (color.g < 0.0) color.g = 0.0;
+      color.g = 288.1221695283 * pow(color.g, -0.0755148492);
+      if (color.g > 255.0)  color.g = 255.0;
+    }
+    if (temp_kelvin >= 66.0){
+      color.b = 255.0;
+    } else if (temp_kelvin <= 19.0){
+      color.b = 0.0;
+    } else {
+      color.b = temp_kelvin - 10.0;
+      color.b = 138.5177312231 * log(color.b) - 305.0447927307;
+      if (color.b < 0.0) color.b = 0.0;
+      if (color.b > 255.0) color.b = 255.0;
+    }
+    color /= 255.0;
+    return color;
+  }
+
+  void main()	{
+    float uvfov = tan(fov / 2.0 * DEG_TO_RAD);
+    vec2 uv = square_frame(resolution);
+    uv *= vec2(resolution.x/resolution.y, 1.0);
+    vec3 forward = normalize(cam_dir);
+    vec3 up = normalize(cam_up);
+    vec3 nright = normalize(cross(forward, up));
+    up = cross(nright, forward);
+    vec3 pixel_pos = cam_pos + forward + nright*uv.x*uvfov + up*uv.y*uvfov;
+    vec3 ray_dir = normalize(pixel_pos - cam_pos);
+
+    if (lorentz_transform)
+      ray_dir = lorentz_transform_velocity(ray_dir, cam_vel);
+
+    vec4 color = vec4(0.0,0.0,0.0,1.0);
+
+    vec3 point = cam_pos;
+    vec3 velocity = ray_dir;
+    vec3 c = cross(point,velocity);
+    float h2 = dot(c,c);
+
+    float ray_gamma = 1.0/sqrt(1.0-dot(cam_vel,cam_vel));
+    float ray_doppler_factor = ray_gamma * (1.0 + dot(ray_dir, -cam_vel));
+
+    float ray_intensity = 1.0;
+    if (beaming)
+      ray_intensity /= pow(ray_doppler_factor , 3.0);
+
+    vec3 oldpoint;
+    float pointsqr;
+    float distance = length(point);
+
+    for (int i=0; i<NSTEPS;i++){
+      oldpoint = point;
+      point += velocity * STEP;
+      vec3 accel = -1.5 * h2 * point / pow(dot(point,point),2.5);
+      velocity += accel * STEP;
+
+      distance = length(point);
+      if ( distance < 0.0) break;
+
+      bool horizon_mask = distance < 1.0 && length(oldpoint) > 1.0;
+      if (horizon_mask) {
+        vec4 black = vec4(0.0,0.0,0.0,1.0);
+        color += black;
+        break;
+      }
+
+      if (accretion_disk){
+        if (oldpoint.y * point.y < 0.0){
+          float lambda = - oldpoint.y/velocity.y;
+          vec3 intersection = oldpoint + lambda*velocity;
+          float r = length(intersection);
+          if (DISK_IN <= r&&r <= DISK_IN+DISK_WIDTH ){
+            float phi = atan(intersection.x, intersection.z);
+
+            vec3 disk_velocity = vec3(-intersection.x, 0.0, intersection.z)/sqrt(2.0*(r-1.0))/(r*r);
+            phi -= time;
+            phi = mod(phi , PI*2.0);
+            float disk_gamma = 1.0/sqrt(1.0-dot(disk_velocity, disk_velocity));
+            float disk_doppler_factor = disk_gamma*(1.0+dot(ray_dir/distance, disk_velocity));
+
+            if (use_disk_texture){
+              vec2 tex_coord = vec2(mod(phi,2.0*PI)/(2.0*PI),1.0-(r-DISK_IN)/(DISK_WIDTH));
+              vec4 disk_color = texture2D(disk_texture, tex_coord) / (ray_doppler_factor * disk_doppler_factor);
+              float disk_alpha = clamp(dot(disk_color,disk_color)/4.5,0.0,1.0);
+
+              if (beaming)
+                disk_alpha /= pow(disk_doppler_factor,3.0);
+
+              color += vec4(disk_color)*disk_alpha;
+            } else {
+              float disk_temperature = 10000.0*(pow(r/DISK_IN, -3.0/4.0));
+              if (doppler_shift)
+                disk_temperature /= ray_doppler_factor*disk_doppler_factor;
+              vec3 disk_color = temp_to_color(disk_temperature);
+              float disk_alpha = clamp(dot(disk_color,disk_color)/3.0,0.0,1.0);
+              if (beaming)
+                disk_alpha /= pow(disk_doppler_factor,3.0);
+              color += vec4(disk_color, 1.0)*disk_alpha;
+            }
+          }
+        }
+      }
+    }
+
+    if (distance > 1.0){
+      ray_dir = normalize(point - oldpoint);
+      vec2 tex_coord = to_spherical(ray_dir * ROT_Z(45.0 * DEG_TO_RAD));
+      vec4 star_color = texture2D(star_texture, tex_coord);
+      if (star_color.g > 0.0){
+        float star_temperature = (MIN_TEMPERATURE + TEMPERATURE_RANGE*star_color.r);
+        float star_velocity = star_color.b - 0.5;
+        float star_doppler_factor = sqrt((1.0+star_velocity)/(1.0-star_velocity));
+        if (doppler_shift)
+          star_temperature /= ray_doppler_factor*star_doppler_factor;
+        color += vec4(temp_to_color(star_temperature),1.0)* star_color.g;
+      }
+      color += texture2D(bg_texture, tex_coord) * 0.25;
+    }
+
+    gl_FragColor = color*ray_intensity;
+  }
+`;
 
 export function initScene(canvas) {
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(
-    60,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    2000,
-  );
-  camera.position.set(0, 1.8, 24);
-
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: true,
-    alpha: true,
-  });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+  renderer.setClearColor(0x000000, 1.0);
+  renderer.autoClear = false;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  // group holds the hole + disk so we can tilt the whole system at once
-  const system = new THREE.Group();
-  system.rotation.x = -0.42; // tip the disk toward the viewer
-  scene.add(system);
+  const scene = new THREE.Scene();
+  const camera = new THREE.Camera();
+  camera.position.z = 1;
 
-  // ---------- event horizon ----------
-  const horizon = new THREE.Mesh(
-    new THREE.SphereGeometry(BH_RADIUS, 64, 64),
-    new THREE.MeshBasicMaterial({ color: 0x000000 }),
-  );
-  system.add(horizon);
+  const uniforms = {
+    time: { value: 0 },
+    resolution: { value: new THREE.Vector2() },
+    accretion_disk: { value: true },
+    use_disk_texture: { value: true },
+    lorentz_transform: { value: true },
+    doppler_shift: { value: true },
+    beaming: { value: true },
+    cam_pos: { value: new THREE.Vector3() },
+    cam_vel: { value: new THREE.Vector3() },
+    cam_dir: { value: new THREE.Vector3() },
+    cam_up: { value: new THREE.Vector3() },
+    fov: { value: 90.0 },
+    bg_texture: { value: null },
+    star_texture: { value: null },
+    disk_texture: { value: null },
+  };
 
-  // ---------- photon ring ----------
-  const photonRing = new THREE.Mesh(
-    new THREE.RingGeometry(BH_RADIUS * 1.02, BH_RADIUS * 1.12, 128),
-    new THREE.MeshBasicMaterial({
-      color: 0xffe9c4,
-      transparent: true,
-      opacity: 0.55,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
-  );
-  photonRing.rotation.x = -Math.PI / 2;
-  system.add(photonRing);
-
-  // ---------- accretion disk ----------
-  const diskMat = new THREE.ShaderMaterial({
-    transparent: true,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    uniforms: {
-      uTime: { value: 0 },
-      uInner: { value: DISK_INNER },
-      uOuter: { value: DISK_OUTER },
-      // Gargantua's palette: near-white at the inner rim falling through
-      // amber to a deep ember. Closely spaced stops — a big jump between
-      // neighbours is what bands once the ramp is quantised to 8 bits.
-      uHot: { value: new THREE.Color(0xfff6e2) },
-      uMid: { value: new THREE.Color(0xffc074) },
-      uCool: { value: new THREE.Color(0xd8823a) },
-    },
-    vertexShader: /* glsl */ `
-      varying vec2 vUv;
-      varying vec3 vPos;
-      void main() {
-        vUv = uv;
-        vPos = position;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: /* glsl */ `
-      uniform float uTime;
-      uniform float uInner;
-      uniform float uOuter;
-      uniform vec3 uHot;
-      uniform vec3 uMid;
-      uniform vec3 uCool;
-      varying vec2 vUv;
-      varying vec3 vPos;
-
-      // cheap value noise
-      float hash(vec2 p) {
-        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-      }
-      float noise(vec2 p) {
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
-        return mix(
-          mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
-          mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
-          f.y
-        );
-      }
-      float fbm(vec2 p) {
-        float v = 0.0, a = 0.5;
-        for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.1; a *= 0.5; }
-        return v;
-      }
-
-      void main() {
-        float r = length(vPos.xy);
-        float t = clamp((r - uInner) / (uOuter - uInner), 0.0, 1.0);
-        float ang = atan(vPos.y, vPos.x);
-
-        // inner material orbits faster than outer — differential rotation
-        float swirl = ang * 2.2 + uTime * (0.45 / (0.35 + t * 2.0));
-        // low-contrast, low-frequency turbulence: Gargantua's disk reads as a
-        // smooth sheet of light, not a churning plasma
-        float turb = fbm(vec2(swirl * 0.7, t * 3.0 - uTime * 0.05));
-
-        // Temperature falls off with radius. Two overlapping weights summed
-        // instead of chained mixes: chaining put a hard seam where one
-        // smoothstep ended and the next began.
-        float wHot  = 1.0 - smoothstep(0.0, 0.62, t);
-        float wCool = smoothstep(0.28, 1.0, t);
-        float wMid  = 1.0 - wHot - wCool;
-        wMid = max(wMid, 0.0);
-        float wSum = wHot + wMid + wCool;
-        vec3 col = (uHot * wHot + uMid * wMid + uCool * wCool) / wSum;
-
-        // Relativistic beaming. The film dialled this way down for legibility —
-        // Gargantua reads as nearly symmetric, with only a gentle lift on one
-        // limb rather than one blazing side and one dark one.
-        float d = sin(ang) * 0.5 + 0.5;
-        float doppler = 0.86 + 0.22 * (d * d * (3.0 - 2.0 * d));
-
-        // brightness: hot inside, fading edges, only lightly textured
-        float edge = smoothstep(0.0, 0.14, t) * (1.0 - smoothstep(0.58, 1.0, t));
-        float bright = edge * (0.88 + 0.20 * turb) * doppler;
-        // inner rim glow — gentle falloff so it blooms instead of banding
-        bright *= 1.0 + 1.1 * exp(-t * 3.6);
-
-        // slight dither breaks up any remaining banding in the smooth ramp
-        bright += (hash(gl_FragCoord.xy) - 0.5) * 0.015;
-
-        gl_FragColor = vec4(col * bright, clamp(bright, 0.0, 1.0) * 0.9);
-      }
-    `,
+  const material = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: VERTEX_SHADER,
+    fragmentShader: FRAGMENT_SHADER,
   });
-  const disk = new THREE.Mesh(
-    new THREE.RingGeometry(DISK_INNER, DISK_OUTER, 256, 64),
-    diskMat,
+
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+  scene.add(mesh);
+
+  // ---- bloom (reference defaults: strength 1.0, radius 0.5, threshold 0.6)
+  const composer = new EffectComposer(renderer);
+  composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  composer.setSize(window.innerWidth, window.innerHeight);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    1.0,
+    0.5,
+    0.6,
   );
-  disk.rotation.x = -Math.PI / 2;
-  system.add(disk);
+  composer.addPass(bloomPass);
+  const copyPass = new ShaderPass(CopyShader);
+  copyPass.renderToScreen = true;
+  composer.addPass(copyPass);
 
-  // a second, thinner disk copy tilted slightly gives the volume some depth
-  const diskHalo = disk.clone();
-  diskHalo.material = diskMat;
-  diskHalo.scale.setScalar(1.06);
-  diskHalo.rotation.x = -Math.PI / 2 + 0.06;
-  system.add(diskHalo);
-
-  // ---------- gravitationally lensed arcs (the Gargantua signature) ----------
-  // Light from the far side of the disk is bent up over the top of the hole and
-  // down under the bottom, so the disk appears to wrap vertically around the
-  // shadow. Faked with a copy of the disk standing perpendicular to it: the
-  // opaque horizon occludes the rear half, leaving exactly the two arcs.
-  // Inner radius must stay clear of the horizon *after* the vertical squash,
-  // otherwise the arc's inner rim is swallowed by the black sphere and the
-  // wrap-around read is lost. 1.42 * 0.82 = 1.16 horizon radii.
-  const ARC_SQUASH = 0.82;
-  const lensArc = new THREE.Mesh(
-    new THREE.RingGeometry(BH_RADIUS * 1.42, DISK_OUTER * 0.92, 256, 32),
-    diskMat,
+  // ---- camera: gently orbiting observer, always looking at the hole ----
+  const observer = new BlackHoleCamera(
+    90.0,
+    window.innerWidth / window.innerHeight,
+    1,
+    80000,
   );
-  lensArc.scale.y = ARC_SQUASH;
-  system.add(lensArc);
+  observer.distance = 10;
+  observer.moving = true; // slow orbit keeps the scene alive
 
-  // a fainter, wider companion arc adds the soft outer halo around the pair
-  const lensArcOuter = lensArc.clone();
-  lensArcOuter.scale.set(1.16, 0.96, 1.16);
-  lensArcOuter.rotation.z = Math.PI;
-  system.add(lensArcOuter);
+  const textures = { bg: null, star: null, disk: null };
+  const loader = new THREE.TextureLoader();
+  loader.load("/blackhole/milkyway.jpg", (t) => {
+    t.magFilter = THREE.NearestFilter;
+    t.minFilter = THREE.NearestFilter;
+    textures.bg = t;
+    uniforms.bg_texture.value = t;
+  });
+  loader.load("/blackhole/star_noise.png", (t) => {
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearFilter;
+    t.wrapT = THREE.ClampToEdgeWrapping;
+    t.wrapS = THREE.ClampToEdgeWrapping;
+    textures.star = t;
+    uniforms.star_texture.value = t;
+  });
+  loader.load("/blackhole/accretion_disk.png", (t) => {
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearFilter;
+    t.wrapT = THREE.ClampToEdgeWrapping;
+    t.wrapS = THREE.ClampToEdgeWrapping;
+    textures.disk = t;
+    uniforms.disk_texture.value = t;
+  });
 
-  // ---------- gravitational lens glow ----------
-  const glow = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: makeGlowTexture(),
-      color: 0xffd9a0,
-      transparent: true,
-      opacity: 0.32,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
-  );
-  glow.scale.setScalar(BH_RADIUS * 7);
-  scene.add(glow);
-
-  // ---------- infalling star field ----------
-  const COUNT = 2600;
-  const pos = new Float32Array(COUNT * 3);
-  const col = new Float32Array(COUNT * 3);
-  // per-star orbital state, kept in plain arrays for speed
-  const rad = new Float32Array(COUNT);
-  const ang = new Float32Array(COUNT);
-  const hgt = new Float32Array(COUNT);
-  const spd = new Float32Array(COUNT);
-
-  // infalling matter glows like the disk it is about to join
-  const cHot = new THREE.Color(0xfff4de);
-  const cCool = new THREE.Color(0xffc98a);
-  const cFar = new THREE.Color(0x8aa8d8); // distant field stars stay cold blue
-
-  function seedStar(i, fresh) {
-    // fresh stars spawn at the outer edge; the initial fill spreads everywhere
-    rad[i] = fresh ? 42 + Math.random() * 26 : DISK_OUTER + Math.random() * 60;
-    ang[i] = Math.random() * Math.PI * 2;
-    hgt[i] = (Math.random() - 0.5) * 26 * (rad[i] / 60);
-    spd[i] = 0.35 + Math.random() * 0.5;
-  }
-  for (let i = 0; i < COUNT; i++) seedStar(i, false);
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
-  const stars = new THREE.Points(
-    geo,
-    new THREE.PointsMaterial({
-      size: 0.16,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.9,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      map: makeDotTexture(),
-    }),
-  );
-  system.add(stars);
-
-  const tmpColor = new THREE.Color();
-
-  function updateStars(dt) {
-    for (let i = 0; i < COUNT; i++) {
-      // Keplerian-ish: closer in means faster orbit and faster infall
-      const r = rad[i];
-      const orbital = (spd[i] * 1.5) / Math.max(r, 2);
-      ang[i] += orbital * dt;
-      rad[i] -= ((spd[i] * 0.38) / Math.max(r * 0.55, 1)) * dt;
-      hgt[i] *= 1 - 0.03 * dt; // orbits flatten into the disk plane as they fall
-
-      // crossed the horizon: recycle it back out at the rim
-      if (rad[i] < BH_RADIUS * 1.05) seedStar(i, true);
-
-      // orbit lies in the XZ plane, matching the disk's own orientation;
-      // Y is the star's height above/below that plane
-      const j = i * 3;
-      pos[j] = Math.cos(ang[i]) * rad[i];
-      pos[j + 1] = hgt[i];
-      pos[j + 2] = Math.sin(ang[i]) * rad[i];
-
-      // Heat up as they spiral in. Weighted blend of all three stops rather
-      // than a lerp chain with an `if` — the branch produced a visible seam
-      // at the halfway point.
-      const t = Math.min(Math.max((rad[i] - DISK_OUTER) / 50, 0), 1);
-      const s = t * t * (3 - 2 * t); // smoothstep
-      const wHot = Math.max(1 - s * 2, 0);
-      const wFar = Math.max(s * 2 - 1, 0);
-      const wCool = 1 - wHot - wFar;
-      tmpColor
-        .setRGB(
-          cHot.r * wHot + cCool.r * wCool + cFar.r * wFar,
-          cHot.g * wHot + cCool.g * wCool + cFar.g * wFar,
-          cHot.b * wHot + cCool.b * wCool + cFar.b * wFar,
-        );
-      col[j] = tmpColor.r;
-      col[j + 1] = tmpColor.g;
-      col[j + 2] = tmpColor.b;
-    }
-    geo.attributes.position.needsUpdate = true;
-    geo.attributes.color.needsUpdate = true;
-  }
-
-  // ---------- interaction ----------
-  const mouse = { x: 0, y: 0 };
-  let scrollProgress = 0;
-
-  window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+  const onResize = () => {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-  window.addEventListener("mousemove", (e) => {
-    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-  });
-  window.addEventListener(
-    "scroll",
-    () => {
-      const max = document.body.scrollHeight - window.innerHeight;
-      scrollProgress = max > 0 ? window.scrollY / max : 0;
-    },
-    { passive: true },
-  );
+    composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    composer.setSize(window.innerWidth, window.innerHeight);
+    bloomPass.resolution.set(window.innerWidth, window.innerHeight);
+    uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
+    observer.aspect = window.innerWidth / window.innerHeight;
+  };
+  window.addEventListener("resize", onResize);
+  onResize();
 
-  // ---------- loop ----------
   const clock = new THREE.Clock();
+  // temp vectors reused per frame
+  const _dir = new THREE.Vector3();
+  const _right = new THREE.Vector3();
+  const _up = new THREE.Vector3();
+  const _worldUp = new THREE.Vector3(0, 1, 0);
   function animate() {
     requestAnimationFrame(animate);
-    // read delta first: getElapsedTime() consumes it internally
     const dt = Math.min(clock.getDelta(), 0.05);
     const t = clock.elapsedTime;
 
-    diskMat.uniforms.uTime.value = t;
-    disk.rotation.z = t * 0.009;
-    diskHalo.rotation.z = -t * 0.006;
-    photonRing.rotation.z = t * 0.014;
-    lensArc.rotation.z = t * 0.009; // arcs track the disk they're an image of
-    lensArcOuter.rotation.z = Math.PI - t * 0.006;
-    updateStars(dt);
+    observer.update(dt);
 
-    // the whole system drifts as you scroll; camera only sways with the mouse
-    system.rotation.y = t * 0.003 + mouse.x * 0.12;
-    // near edge-on, the way Gargantua is framed on screen
-    system.rotation.x = -0.16 + scrollProgress * 0.42 + mouse.y * 0.05;
-    system.position.y = -scrollProgress * 10;
-    glow.position.copy(system.position);
+    // aim the camera straight at the hole (origin) so it stays centered
+    _dir.copy(observer.position).negate().normalize();
+    _right.crossVectors(_dir, _worldUp).normalize();
+    _up.crossVectors(_right, _dir).normalize();
 
-    camera.position.x += (mouse.x * 1.6 - camera.position.x) * 0.03;
-    camera.position.y += (1.8 + mouse.y * 1.0 - camera.position.y) * 0.03;
-    camera.lookAt(system.position);
+    uniforms.time.value = t;
+    uniforms.fov.value = observer.fov;
+    uniforms.cam_pos.value.copy(observer.position);
+    uniforms.cam_dir.value.copy(_dir);
+    uniforms.cam_up.value.copy(_up);
+    uniforms.cam_vel.value.copy(observer.velocity);
 
-    renderer.render(scene, camera);
+    composer.render();
   }
   animate();
-}
-
-// Radial glow used for the lensing halo.
-function makeGlowTexture() {
-  const size = 256;
-  const cv = document.createElement("canvas");
-  cv.width = cv.height = size;
-  const ctx = cv.getContext("2d");
-  const g = ctx.createRadialGradient(128, 128, 20, 128, 128, 128);
-  g.addColorStop(0, "rgba(255,255,255,0.55)");
-  g.addColorStop(0.25, "rgba(255,220,170,0.28)");
-  g.addColorStop(0.6, "rgba(255,180,120,0.07)");
-  g.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, size, size);
-  const tex = new THREE.Texture(cv);
-  tex.needsUpdate = true;
-  return tex;
-}
-
-// Soft radial dot so stars look like glowing points, not squares.
-function makeDotTexture() {
-  const size = 64;
-  const cv = document.createElement("canvas");
-  cv.width = cv.height = size;
-  const ctx = cv.getContext("2d");
-  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  g.addColorStop(0, "rgba(255,255,255,1)");
-  g.addColorStop(0.3, "rgba(255,255,255,0.7)");
-  g.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, size, size);
-  const tex = new THREE.Texture(cv);
-  tex.needsUpdate = true;
-  return tex;
 }

@@ -41,6 +41,15 @@ body {
   z-index: -1;
   pointer-events: none;
   background:
+    /* content sits in the left column; the accretion disk is bright enough to
+       swallow body copy, so weight a scrim toward that side and leave the
+       right clear for the black hole itself */
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.5) 0%,
+      rgba(0, 0, 0, 0.32) 34%,
+      rgba(0, 0, 0, 0) 58%
+    ),
     radial-gradient(ellipse at 50% 0%, transparent 60%, rgba(0, 0, 0, 0.6) 100%),
     repeating-linear-gradient(
       0deg,
@@ -48,6 +57,19 @@ body {
       rgba(0, 0, 0, 0) 2px,
       rgba(0, 0, 0, 0.15) 3px
     );
+}
+
+/* Copy can run across the accretion disk, which is bright enough to swallow
+   it. A shadow carries legibility there without dimming the background — the
+   scrim above only handles the left column. */
+.panel-body,
+.tl-body h3,
+.tl-body p,
+.card h3,
+.card p {
+  text-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.9),
+    0 0 16px rgba(0, 0, 0, 0.7);
 }
 
 /* ---------- scroll progress ---------- */
