@@ -96,10 +96,27 @@ document.querySelectorAll(".panel").forEach((el) => sectionObserver.observe(el))
 document.querySelectorAll("[data-nav]").forEach((a) => {
   a.addEventListener("click", (e) => {
     e.preventDefault();
+    document.body.classList.remove("nav-open");
     const id = a.getAttribute("href").slice(1);
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   });
 });
+
+// --- hamburger toggle (mobile) ---
+const burger = document.getElementById("nav-burger");
+if (burger) {
+  burger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = document.body.classList.toggle("nav-open");
+    burger.setAttribute("aria-expanded", String(open));
+  });
+  document.addEventListener("click", (e) => {
+    if (document.body.classList.contains("nav-open") && !e.target.closest(".nav")) {
+      document.body.classList.remove("nav-open");
+      burger.setAttribute("aria-expanded", "false");
+    }
+  });
+}
 
 // --- brand: back home (exits chat session, clears chat, restores the hole) ---
 function goHome() {

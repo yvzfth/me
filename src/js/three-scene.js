@@ -291,13 +291,16 @@ export function initScene(canvas) {
   composer.addPass(copyPass);
 
   // ---- camera: gently orbiting observer, always looking at the hole ----
+  // On narrow phones (390–440px) the hole fills the whole viewport, so zoom
+  // out (wider FOV + pull back) to frame the accretion disk in the hero.
+  const compact = window.innerWidth <= 440;
   const observer = new BlackHoleCamera(
-    90.0,
+    compact ? 130 : 90.0,
     window.innerWidth / window.innerHeight,
     1,
     80000,
   );
-  observer.distance = 8;
+  observer.distance = compact ? 13 : 8;
   observer.moving = true; // slow orbit keeps the scene alive
 
   const textures = { bg: null, star: null, disk: null };
@@ -370,7 +373,7 @@ export function initScene(canvas) {
   let tweenCb = null;
   const TWEEN_MS = 1600;
   const FAR_DISTANCE = 400;
-  const ENTRY_DISTANCE = 8;
+  const ENTRY_DISTANCE = observer.distance;
   // temp vectors reused per frame
   const _dir = new THREE.Vector3();
   const _right = new THREE.Vector3();

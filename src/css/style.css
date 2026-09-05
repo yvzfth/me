@@ -15,16 +15,27 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
   overflow-x: hidden;
+  overflow-y: auto;
   line-height: 1.6;
+  overscroll-behavior-y: none;
+}
+/* remove the 300ms double-tap delay and the iOS focus-zoom on form fields */
+a,
+button,
+textarea,
+input {
+  touch-action: manipulation;
 }
 
 /* ---------- background ---------- */
@@ -123,6 +134,26 @@ body {
 .nav-theme:hover {
   transform: rotate(180deg);
 }
+/* hamburger button — desktop hidden, phone only */
+.nav-burger {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  gap: 4px;
+}
+.nav-burger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text);
+  transition: transform 0.3s, opacity 0.3s;
+}
+.nav-links {
+  display: contents;
+}
 
 /* ---------- brand (name + mark, top-left) ---------- */
 .brand {
@@ -171,6 +202,7 @@ body {
 }
 .hero {
   min-height: 100vh;
+  min-height: 100svh;
 }
 .cta {
   margin-top: 1.6rem;
@@ -467,6 +499,8 @@ kbd {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 14px;
+  min-width: 0;
+  width: 100%;
 }
 .stat {
   background: var(--glass);
@@ -582,6 +616,7 @@ html {
 }
 .panel {
   min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -699,6 +734,7 @@ html:has(body.term-fullscreen) {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px;
+  min-width: 0;
 }
 .chip {
   display: flex;
@@ -734,6 +770,7 @@ html:has(body.term-fullscreen) {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
+  min-width: 0;
 }
 .card {
   background: var(--glass);
@@ -833,11 +870,14 @@ html:has(body.term-fullscreen) {
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 0 clamp(14px, 4vw, 40px) 14px;
+  box-sizing: border-box;
 }
 .chat-messages {
   width: 100%;
   max-width: 720px;
-  flex: 0 0 45vh;
+  flex: 0 0 auto;
+  max-height: 50vh;
   min-height: 0;
   overflow-y: auto;
   padding: 1rem 0 0;
@@ -991,7 +1031,7 @@ body.chat-session .chat-bar {
   position: static;
   top: auto;
   height: auto;
-  padding: 4rem 5% 7rem;
+  padding: 2.5rem 4% 6.5rem;
 }
 body.chat-session .chat-messages {
   flex: 0 0 auto;
@@ -1008,37 +1048,183 @@ body.chat-session .chat-input-wrap {
   transform: translateX(-50%);
   margin: 0;
 }
-@media (max-width: 860px) {
-  .hero { padding-top: 0; }
-  .chat-msg { max-width: 95%; font-size: 0.82rem; }
-  body.chat-session .chat-bar { padding: 2.5rem 4% 6.5rem; }
-}
 .accent {
   color: var(--accent);
 }
 
 /* ---------- responsive ---------- */
+/* tablet / small laptop */
 @media (max-width: 860px) {
   .hero {
     padding-top: 6rem;
     padding-bottom: 11vh;
   }
   .nav {
-    gap: 14px;
-    padding: 8px 16px;
+    gap: 12px;
+    padding: 8px 14px;
     font-size: 0.75rem;
+    left: auto;
+    right: 16px;
+    transform: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    justify-content: flex-start;
+    max-width: calc(100vw - 180px);
+  }
+  .nav-theme {
+    flex-shrink: 0;
+  }
+  .brand {
+    gap: 7px;
+    padding: 8px 13px;
+    font-size: 0.8rem;
+  }
+  .panel {
+    justify-content: flex-start;
+    padding: 5.5rem 6% 3rem;
+  }
+  .term-dock {
+    right: 14px;
+    bottom: 14px;
+    width: min(560px, calc(100vw - 28px));
+  }
+  .term-bubble {
+    right: 16px;
+    bottom: 16px;
+    width: 54px;
+    height: 54px;
   }
   .term-body {
     height: 300px;
     font-size: 0.82rem;
   }
 }
-@media (max-width: 480px) {
-  .nav a:first-child {
+/* phone */
+@media (max-width: 560px) {
+  /* compact top bar: logo left, hamburger right, links collapse to a dropdown */
+  .nav {
+    gap: 0;
+    left: auto;
+    right: 14px;
+    transform: none;
+    padding: 8px;
+    border-radius: 16px;
+    justify-content: flex-end;
+    backdrop-filter: none;
+    overflow: visible;
+  }
+  .nav-burger {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 2;
+  }
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 8px;
+    min-width: 170px;
+    background: rgba(8, 10, 16, 0.96);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+  }
+  .nav-links a {
+    display: block;
+    padding: 10px 16px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+  body.nav-open .nav-links {
+    display: flex;
+  }
+  /* burger -> X */
+  body.nav-open .nav-burger span:nth-child(1) {
+    transform: translateY(6px) rotate(45deg);
+  }
+  body.nav-open .nav-burger span:nth-child(2) {
+    opacity: 0;
+  }
+  body.nav-open .nav-burger span:nth-child(3) {
+    transform: translateY(-6px) rotate(-45deg);
+  }
+  body.nav-open .nav-theme {
     display: none;
   }
-  .neofetch {
-    flex-direction: column;
-    gap: 6px;
+  .nav-theme {
+    display: none;
+  }
+  .nav a:first-child {
+    display: block;
+  }
+  .title {
+    font-size: clamp(2.2rem, 11vw, 3rem);
+  }
+  .subtitle {
+    font-size: 1.05rem;
+  }
+  .panel-title {
+    font-size: 1.6rem;
+  }
+  .panel-body {
+    font-size: 0.95rem;
+  }
+  .footer {
+    padding: 2.5rem 5%;
+  }
+  .timeline {
+    margin-left: 2px;
+  }
+  .tl-item {
+    padding-left: 24px;
+  }
+  .card {
+    padding: 18px;
+  }
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .shrink-cta {
+    font-size: 0.85rem;
+  }
+}
+@media (max-width: 380px) {
+  .nav {
+    gap: 0;
+    justify-content: space-between;
+  }
+  .nav a {
+    padding: 4px 6px;
+  }
+  .term-dock {
+    width: calc(100vw - 16px);
+    right: 8px;
+    bottom: 8px;
+  }
+  .term-bubble {
+    right: 10px;
+    bottom: 10px;
+  }
+}
+/* ---------- chat session (mobile) ---------- */
+@media (max-width: 860px) {
+  body.chat-session .chat-input-wrap {
+    bottom: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: 12px;
+    right: 12px;
+    width: auto;
+    transform: none;
+    margin: 0 auto;
+  }
+  .chat-msg {
+    max-width: 95%;
+    font-size: 0.82rem;
   }
 }

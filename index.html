@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta
       name="description"
       content="Web Developer. Portfolio with an interactive terminal and 3D visuals."
@@ -34,12 +34,17 @@
 
     <!-- Floating nav -->
     <nav class="nav" id="nav">
-      <a href="#home" data-nav>~/home</a>
-      <a href="#about" data-nav>about</a>
-      <a href="#skills" data-nav>skills</a>
-      <a href="#experience" data-nav>experience</a>
-      <a href="#projects" data-nav>projects</a>
-      <a href="#contact" data-nav>contact</a>
+      <button class="nav-burger" id="nav-burger" aria-label="Menu" aria-expanded="false" title="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="nav-links">
+        <a href="#home" data-nav>~/home</a>
+        <a href="#about" data-nav>about</a>
+        <a href="#skills" data-nav>skills</a>
+        <a href="#experience" data-nav>experience</a>
+        <a href="#projects" data-nav>projects</a>
+        <a href="#contact" data-nav>contact</a>
+      </div>
       <button class="nav-theme" id="nav-theme" title="cycle theme">◐</button>
     </nav>
 
