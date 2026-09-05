@@ -326,22 +326,41 @@ export function initScene(canvas) {
     uniforms.disk_texture.value = t;
   });
 
-  const onResize = () => {
-    // pixelRatio kept at 1: the shader's square_frame() maps gl_FragCoord
-    // (device px) to [-1,1], so buffer size MUST equal CSS size or the
-    // black hole gets pinned off-center at any pixelRatio > 1.
+  // The fullscreen ray-march shader runs one NSTEPS-step photon path per
+  // pixel, so it is starved for fill rate. Instead of always rendering at full
+  // device resolution we draw into a smaller buffer and let the browser
+  // upscale it (invisible for a soft background), then adjust the scale as the
+  // frame rate dictates so the GPU is never pegged by the background.
+  const SCALES = [1, 0.72, 0.52];
+  let quality = 0;
+
+  function applySize() {
+    const scale = SCALES[quality];
+    const w = Math.max(1, Math.round(window.innerWidth * scale));
+    const h = Math.max(1, Math.round(window.innerHeight * scale));
+    // updateStyle=false keeps the canvas CSS fullscreen; only the drawing
+    // buffer shrinks. pixelRatio stays at 1: the shader maps gl_FragCoord
+    // (buffer px) to [-1,1], so resolution MUST equal the buffer size or the
+    // black hole gets pinned off-center.
     renderer.setPixelRatio(1);
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(w, h, false);
     composer.setPixelRatio(1);
-    composer.setSize(window.innerWidth, window.innerHeight);
-    bloomPass.resolution.set(window.innerWidth, window.innerHeight);
-    uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
+    composer.setSize(w, h);
+    bloomPass.resolution.set(w, h);
+    uniforms.resolution.value.set(w, h);
     observer.aspect = window.innerWidth / window.innerHeight;
-  };
-  window.addEventListener("resize", onResize);
-  onResize();
+  }
+  window.addEventListener("resize", applySize);
+  applySize();
 
   const clock = new THREE.Clock();
+  // adaptive-quality bookkeeping: remeasure fps every second, drop quality
+  // under load, regain it only after a few sustained fast windows (hysteresis
+  // between the thresholds keeps the scale from oscillating).
+  let frames = 0;
+  let fpsClock = performance.now();
+  let upSlack = 0;
+  const FPS_WINDOW = 1000;
   // camera-distance tween: pulls the hole out to stars (collapse) or back in
   // to the hero (reset), with an ease and a callback on arrival.
   let tweenFrom = null;
@@ -387,6 +406,29 @@ export function initScene(canvas) {
     uniforms.cam_dir.value.copy(_dir);
     uniforms.cam_up.value.copy(_up);
     uniforms.cam_vel.value.copy(observer.velocity);
+
+    frames++;
+    const now = performance.now();
+    if (now - fpsClock >= FPS_WINDOW) {
+      const fpsNow = (frames * 1000) / (now - fpsClock);
+      frames = 0;
+      fpsClock = now;
+      if (fpsNow < 35 && quality < SCALES.length - 1) {
+        quality++;
+        upSlack = 0;
+        applySize();
+      } else if (fpsNow > 52 && quality > 0) {
+        if (upSlack >= 2) {
+          quality--;
+          upSlack = 0;
+          applySize();
+        } else {
+          upSlack++;
+        }
+      } else {
+        upSlack = 0;
+      }
+    }
 
     composer.render();
   }
