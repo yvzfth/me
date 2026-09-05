@@ -847,6 +847,13 @@ html:has(body.term-fullscreen) {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 255, 204, 0.3) transparent;
 }
+/* pin the newest message to the bottom without making older messages
+   unreachable: margin-top:auto pads the stack into place and keeps the
+   container genuinely scrollable when it overflows (justify-content:
+   flex-end would push overflow above the box where it can't be scrolled) */
+.chat-msg:first-child {
+  margin-top: auto;
+}
 .chat-msg {
   font-family: var(--font-mono);
   font-size: 0.85rem;
@@ -962,42 +969,49 @@ html:has(body.term-fullscreen) {
   opacity: 1;
 }
 
-/* ---------- full-screen chat session ----------
+/* ---------- chat session ----------
    Triggered on the first submitted message: the black hole is hidden in the
-   shader (stars stay), and the chat takes over the whole viewport. */
+   shader (stars stay) and the site content collapses so the conversation
+   reads as its own page. The feed flows with the document — the page itself
+   scrolls — while the input stays pinned to the bottom. */
 html:has(body.chat-session) {
   scroll-snap-type: none;
 }
-body.chat-session {
-  overflow: hidden;
-}
 body.chat-session .nav,
 body.chat-session .progress,
-body.chat-session .app,
 body.chat-session .term-dock {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.4s;
 }
+body.chat-session .app {
+  display: none;
+}
 body.chat-session .chat-bar {
-  top: 0;
-  height: 100vh;
-  padding-top: 3rem;
-  justify-content: flex-end;
+  position: static;
+  top: auto;
+  height: auto;
+  padding: 4rem 5% 7rem;
 }
 body.chat-session .chat-messages {
-  flex: 1 1 0;
+  flex: 0 0 auto;
   min-height: 0;
   height: auto;
   max-height: none;
-  justify-content: flex-end;
-  padding-bottom: 1.25rem;
+  padding-bottom: 0;
+  overflow: visible;
+}
+body.chat-session .chat-input-wrap {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
 }
 @media (max-width: 860px) {
   .hero { padding-top: 0; }
   .chat-msg { max-width: 95%; font-size: 0.82rem; }
-  .chat-input-wrap { margin-bottom: 14px; }
-  body.chat-session .chat-bar { padding-top: 1.5rem; }
+  body.chat-session .chat-bar { padding: 2.5rem 4% 6.5rem; }
 }
 .accent {
   color: var(--accent);

@@ -476,7 +476,11 @@ export function initChat(scene) {
     div.className = `chat-msg ${role}`;
     div.textContent = text;
     box.appendChild(div);
-    box.scrollTop = box.scrollHeight;
+    if (document.body.classList.contains("chat-session")) {
+      window.scrollTo(0, document.body.scrollHeight);
+    } else {
+      box.scrollTop = box.scrollHeight;
+    }
   }
 
   function enterSession() {
